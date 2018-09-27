@@ -44,7 +44,7 @@ public class BaseActivity extends AppCompatActivity {
         if (toolbar != null) {
             setSupportActionBar(toolbar);
             toolbar.setNavigationIcon(R.drawable.ic_menu_white);
-            toolbar.setTitle("Tebak Lagu Anime");
+            toolbar.setTitle("Motor GO");
         }
     }
 

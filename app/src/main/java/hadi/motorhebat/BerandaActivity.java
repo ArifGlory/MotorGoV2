@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -13,12 +14,16 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Build;
 import android.os.CountDownTimer;
+import android.support.annotation.RequiresApi;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.os.Bundle;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.CardView;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -53,10 +58,10 @@ public class BerandaActivity extends BaseDrawerActivity implements LocationListe
     private FirebaseAuth fAuth;
     private FirebaseAuth.AuthStateListener fStateListener;
     public static String activeDevice = "";
-    TextView txtNamaMotor,txtPlatNomor;
-    CardView crd_mesin,crd_timer,crd_search,crd_lokasi;
-    ImageView img_engine,img_search,img_lokasi,img_timer;
-    String Smesin,Ssecure,Slokasi,Sping,Snama,Splat,Swarning;
+    TextView txtNamaMotor,txtPlatNomor,txtNotif,txtStarter;
+    CardView crd_mesin,crd_timer,crd_search,crd_lokasi,crd_notif,crd_starter;
+    ImageView img_engine,img_search,img_lokasi,img_timer,img_notif;
+    String Smesin,Ssecure,Slokasi,Sping,Snama,Splat,Swarning,Sstarter;
     private static final long time = 2;
     private CountDownTimer mCountDownTimer;
     private long mTimeRemaining;
@@ -83,6 +88,7 @@ public class BerandaActivity extends BaseDrawerActivity implements LocationListe
     Date calNow;
     Calendar calSet,calBanding;
     UserPreference mUserPref;
+    DialogInterface.OnClickListener listener;
     int jarakAman;
 
     @Override
@@ -104,10 +110,15 @@ public class BerandaActivity extends BaseDrawerActivity implements LocationListe
         crd_timer = (CardView) findViewById(R.id.crd_timer);
         crd_lokasi = (CardView) findViewById(R.id.crd_lokasi);
         crd_search = (CardView) findViewById(R.id.crd_search);
+        crd_starter = (CardView) findViewById(R.id.cardStarter);
         img_engine = (ImageView) findViewById(R.id.engine);
         img_search = (ImageView) findViewById(R.id.search);
         img_lokasi = (ImageView) findViewById(R.id.lokasi);
         img_timer = (ImageView) findViewById(R.id.timer);
+        crd_notif = (CardView) findViewById(R.id.cardNotif);
+        img_notif = (ImageView) findViewById(R.id.logoNotif);
+        txtNotif = (TextView) findViewById(R.id.txtNotif);
+        txtStarter = (TextView) findViewById(R.id.txtStarter);
         mUserPref = new UserPreference(this);
         jarakAman = mUserPref.getJarakAman();
 
@@ -141,6 +152,7 @@ public class BerandaActivity extends BaseDrawerActivity implements LocationListe
         if (activeDevice.equals("zero")){
             txtNamaMotor.setText("Belum Mendaftarkan Motor");
             txtPlatNomor.setText("-- ---- --");
+            txtNotif.setText("----------");
             matikanKomponenSementara();
         }else {
             matikanKomponen();
@@ -156,6 +168,8 @@ public class BerandaActivity extends BaseDrawerActivity implements LocationListe
                     String latlon = dataSnapshot.child("latlon").getValue().toString();
                     String sublon = latlon.substring(latlon.indexOf(",")+1);
                     String warning = dataSnapshot.child("warning").getValue().toString();
+                    String starter = dataSnapshot.child("starter").getValue().toString();
+                    String status = dataSnapshot.child("status").getValue().toString();
                     int index = latlon.indexOf(",");
                     String sublat = latlon.substring(0,index);
                     //Toast.makeText(getApplicationContext(),"substing lat : "+sublat+" | substing lon : "+sublon, Toast.LENGTH_SHORT).show();
@@ -167,13 +181,21 @@ public class BerandaActivity extends BaseDrawerActivity implements LocationListe
                     lon = Double.valueOf(sublon);
 
                     Sping = ping;
-                    Smesin = mesin;
-                    Ssecure = secure;
+                    Smesin = secure;
+                    Ssecure = status;
                     Swarning = warning;
                     SharedVariable.latitudeMotor = lat;
                     SharedVariable.longitudeMotor = lon;
+                    Sstarter = mesin;
 
 
+                    if (Sstarter.equals("Off")){
+                        txtStarter.setText("Starter Off");
+                        crd_starter.setBackgroundColor(getResources().getColor(R.color.white));
+                    }else {
+                        txtStarter.setText("Starter On");
+                        crd_starter.setBackgroundColor(getResources().getColor(R.color.colorAccent));
+                    }
                     if (Sping.equals("Off")){
                         img_search.setImageResource(R.drawable.search_off);
                     }else {
@@ -193,33 +215,40 @@ public class BerandaActivity extends BaseDrawerActivity implements LocationListe
                     }
 
                     if (Swarning.equals("aman")){
-
+                        img_notif.setImageResource(R.drawable.warning_off);
+                        txtNotif.setText("Kunci Aman");
                     }else {
-                       //tampilkam Motif
-                        calNow = Calendar.getInstance().getTime();
-                        calSet = Calendar.getInstance();
-                        calBanding = Calendar.getInstance();
-                        a = calNow.getHours();
-                        b = calNow.getMinutes() + 1;
-                        calSet.set(Calendar.HOUR_OF_DAY, a);
-                        calSet.set(Calendar.MINUTE, b);
-                        calSet.set(Calendar.SECOND, 0);
-                        calSet.set(Calendar.MILLISECOND, 0);
+                        if (Ssecure.equals("On")){
+                            img_notif.setImageResource(R.drawable.warning_on);
+                            txtNotif.setText("Terindikasi Pembobolan !");
 
-                        if (calSet.compareTo(calBanding) <= 0) {
-                            //today set time passed,count to tomorow
+                            //tampilkam Motif
+                            calNow = Calendar.getInstance().getTime();
+                            calSet = Calendar.getInstance();
+                            calBanding = Calendar.getInstance();
+                            a = calNow.getHours();
+                            b = calNow.getMinutes() + 1;
+                            calSet.set(Calendar.HOUR_OF_DAY, a);
+                            calSet.set(Calendar.MINUTE, b);
+                            calSet.set(Calendar.SECOND, 0);
+                            calSet.set(Calendar.MILLISECOND, 0);
 
-                            calSet.add(Calendar.DATE, 1);
-                            Log.i("Hasil = ", "<=0");
-                        } else if (calSet.compareTo(calBanding) > 0) {
+                            if (calSet.compareTo(calBanding) <= 0) {
+                                //today set time passed,count to tomorow
 
-                            Log.i("Hasil = ", " > 0");
-                        } else {
+                                calSet.add(Calendar.DATE, 1);
+                                Log.i("Hasil = ", "<=0");
+                            } else if (calSet.compareTo(calBanding) > 0) {
 
-                            Log.i("Hasil = ", "else");
+                                Log.i("Hasil = ", " > 0");
+                            } else {
+
+                                Log.i("Hasil = ", "else");
+                            }
+
+                            setNotif(calSet);
                         }
 
-                        setNotif(calSet);
                     }
 
                  //   Toast.makeText(getApplicationContext(),"lat : "+lat+" , Lon : "+lon , Toast.LENGTH_LONG).show();
@@ -251,12 +280,12 @@ public class BerandaActivity extends BaseDrawerActivity implements LocationListe
             public void onClick(View view) {
 
                 if (Smesin.equals("Off")){
-                    ref.child("device").child(activeDevice).child("mesin").setValue("On");
+                    ref.child("device").child(activeDevice).child("secureMode").setValue("On");
                   //  Toast.makeText(getApplicationContext(),"Hour : "+a+", B : "+b, Toast.LENGTH_SHORT).show();
 
 
                 }else {
-                    ref.child("device").child(activeDevice).child("mesin").setValue("Off");
+                    ref.child("device").child(activeDevice).child("secureMode").setValue("Off");
                 }
 
             }
@@ -284,10 +313,10 @@ public class BerandaActivity extends BaseDrawerActivity implements LocationListe
             public void onClick(View view) {
 
                 if (Ssecure.equals("Off")){
-                    ref.child("device").child(activeDevice).child("secureMode").setValue("On");
+                    ref.child("device").child(activeDevice).child("status").setValue("On");
                     SharedVariable.notifChance = 0;
                 }else {
-                    ref.child("device").child(activeDevice).child("secureMode").setValue("Off");
+                    ref.child("device").child(activeDevice).child("status").setValue("Off");
                 }
             }
         });
@@ -301,7 +330,34 @@ public class BerandaActivity extends BaseDrawerActivity implements LocationListe
             }
         });
 
+        crd_notif.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (Swarning.equals("aman")){
 
+                }else {
+                    if (Ssecure.equals("On")){
+                        showDialogNotif();
+                    }
+
+                }
+            }
+        });
+
+        crd_starter.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (Smesin.equals("On")){
+                   // txtStarter.setText("Starter On");
+                   // crd_starter.setBackgroundColor(getResources().getColor(R.color.colorAccent));
+                    ref.child("device").child(activeDevice).child("mesin").setValue("On");
+
+                }else {
+                    Toast.makeText(getApplicationContext(),"Kontak belum dinyalakan",Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+        
 
     }
 
@@ -311,6 +367,7 @@ public class BerandaActivity extends BaseDrawerActivity implements LocationListe
         crd_mesin.setEnabled(false);
         crd_search.setEnabled(false);
         crd_timer.setEnabled(false);
+        crd_notif.setEnabled(false);
     }
 
     private void matikanKomponenSementara(){
@@ -318,6 +375,7 @@ public class BerandaActivity extends BaseDrawerActivity implements LocationListe
         crd_mesin.setEnabled(false);
         crd_search.setEnabled(false);
         crd_timer.setEnabled(false);
+        crd_notif.setEnabled(false);
     }
 
     private void hidupkanKomponen(){
@@ -326,6 +384,7 @@ public class BerandaActivity extends BaseDrawerActivity implements LocationListe
         crd_mesin.setEnabled(true);
         crd_search.setEnabled(true);
         crd_timer.setEnabled(true);
+        crd_notif.setEnabled(true);
     }
 
     @Override
@@ -352,6 +411,34 @@ public class BerandaActivity extends BaseDrawerActivity implements LocationListe
     @Override
     public void onProviderDisabled(String s) {
 
+    }
+
+
+    private void showDialogNotif(){
+        LayoutInflater minlfater = LayoutInflater.from(this);
+        View v = minlfater.inflate(R.layout.custom_dialog_goto_login, null);
+        final android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(this).create();
+        dialog.setView(v);
+
+        final Button btnDialogYes = (Button) v.findViewById(R.id.btnDialogKeLogin);
+        final Button btnDialogNo = (Button) v.findViewById(R.id.btnDialogNo);
+        final ImageView headerImage = (ImageView) v.findViewById(R.id.header_cover_image);
+
+
+        btnDialogYes.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                ref.child("device").child(activeDevice).child("warning").setValue("aman");
+                dialog.dismiss();
+            }
+        });
+        btnDialogNo.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                dialog.dismiss();
+            }
+        });
+        dialog.show();
     }
 
     public Location getLocation() {
